@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fix-It-Fast | Delivery Exception Resolution</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --green: #16a34a; --green-l: #dcfce7; --green-d: #14532d;
+    --red: #dc2626; --red-l: #fee2e2;
+    --yellow: #d97706; --yellow-l: #fef3c7;
+    --blue: #1d4ed8; --blue-l: #dbeafe;
+    --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+    --gray-400: #94a3b8; --gray-500: #64748b; --gray-700: #334155; --gray-900: #0f172a;
+    --ink: #0f172a; --surface: #ffffff;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+    --r-sm: 8px; --r-md: 14px; --r-lg: 20px;
+    --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  body { font-family: var(--font); background: var(--gray-100); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+  body > .screen:not(.active) { display: none !important; }
+
+  #screen-role { background: linear-gradient(160deg, #0f172a 0%, #1e3a5f 100%); align-items: center; justify-content: center; padding: 2rem 1.5rem; }
+  .role-logo { font-size: 2.6rem; font-weight: 800; color: #fff; letter-spacing: -1.5px; text-align: center; margin-bottom: 0.4rem; }
+  .role-logo span { color: #34d399; }
+  .role-sub { font-size: 0.9rem; color: #94a3b8; text-align: center; margin-bottom: 2.8rem; max-width: 260px; line-height: 1.5; }
+  .role-cards { display: flex; flex-direction: column; gap: 1rem; width: 100%; max-width: 340px; }
+  .role-btn { display: flex; align-items: center; gap: 1rem; padding: 1.2rem 1.4rem; border-radius: var(--r-md); border: none; cursor: pointer; font-size: 1rem; font-weight: 600; transition: transform .15s; text-align: left; }
+  .role-btn:active { transform: scale(0.97); }
+  .role-btn.driver { background: var(--green); color: #fff; }
+  .role-btn.ops { background: var(--blue); color: #fff; }
+  .role-btn .role-icon { font-size: 1.6rem; }
+  .role-btn-text-wrap { display: flex; flex-direction: column; gap: 0.1rem; }
+  .role-btn-label { font-size: 1rem; font-weight: 700; }
+  .role-btn-hint { font-size: 0.75rem; opacity: 0.8; font-weight: 400; }
+
+  .driver-screen { background: var(--gray-100); min-height: 100vh; display: flex; flex-direction: column; max-width: 420px; margin: 0 auto; width: 100%; }
+  .top-bar { background: var(--surface); padding: 1rem 1.25rem 0.8rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; z-index: 10; }
+  .top-bar-back { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 0.2rem; color: var(--gray-700); display: flex; }
+  .top-bar-title { font-size: 1rem; font-weight: 700; color: var(--ink); flex: 1; }
+  .driver-body { flex: 1; padding: 1rem 1rem 2rem; display: flex; flex-direction: column; gap: 1rem; }
+
+  .order-card { background: var(--surface); border-radius: var(--r-md); padding: 1.1rem 1.15rem; box-shadow: var(--shadow); }
+  .order-id { font-size: 0.72rem; color: var(--gray-500); font-weight: 600; letter-spacing: .04em; margin-bottom: 0.5rem; }
+  .order-rest { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin-bottom: 0.25rem; }
+  .order-meta { font-size: 0.82rem; color: var(--gray-500); display: flex; gap: 1rem; margin-bottom: 0.8rem; }
+  .order-status { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--yellow-l); color: var(--yellow); font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.75rem; border-radius: 20px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .swipe-wrap { background: var(--surface); border-radius: var(--r-md); padding: 1.25rem; box-shadow: var(--shadow); }
+  .swipe-label { font-size: 0.8rem; color: var(--gray-500); margin-bottom: 0.9rem; font-weight: 500; text-align: center; }
+  .swipe-track { position: relative; height: 58px; background: var(--green-l); border-radius: 30px; overflow: hidden; cursor: grab; user-select: none; }
+  .swipe-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--green); border-radius: 30px; width: 58px; transition: width .05s linear; opacity: 0.25; }
+  .swipe-knob { position: absolute; top: 5px; left: 5px; width: 48px; height: 48px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.3rem; box-shadow: 0 2px 8px rgba(22,163,74,.35); transition: left .3s cubic-bezier(.22,.8,.34,1); cursor: grab; }
+  .swipe-knob.snapping { transition: left .3s cubic-bezier(.22,.8,.34,1); }
+  .swipe-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.82rem; font-weight: 600; color: var(--green-d); white-space: nowrap; pointer-events: none; }
+
+  .popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .popup-overlay.visible { opacity: 1; pointer-events: all; }
+  .popup-sheet { background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 1.5rem 1.25rem 2rem; width: 100%; max-width: 420px; transform: translateY(100%); transition: transform .25s cubic-bezier(.22,.8,.34,1); }
+  .popup-overlay.visible .popup-sheet { transform: translateY(0); }
+  .popup-icon { font-size: 2rem; margin-bottom: 0.6rem; }
+  .popup-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .popup-body { font-size: 0.88rem; color: var(--gray-500); line-height: 1.55; margin-bottom: 1.2rem; }
+  .popup-actions { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .btn { width: 100%; padding: 0.85rem 1rem; border: none; border-radius: var(--r-sm); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s; }
+  .btn:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn-gray { background: var(--gray-200); color: var(--gray-700); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--gray-200); color: var(--gray-700); }
+  .btn-yellow { background: #fbbf24; color: #451a03; }
+
+  .btn-call {
+    background: transparent;
+    border: 1.5px solid #cbd5e1;
+    color: var(--gray-500);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.65rem 1rem;
+    margin-top: 0.5rem;
+  }
+  .btn-call:hover { border-color: var(--gray-500); color: var(--gray-700); }
+
+  .info-card { border-radius: var(--r-md); padding: 1rem 1.15rem; font-size: 0.88rem; line-height: 1.55; }
+  .info-card.yellow { background: var(--yellow-l); border-left: 3px solid var(--yellow); color: var(--gray-700); }
+  .info-card.green { background: var(--green-l); border-left: 3px solid var(--green); color: var(--green-d); }
+  .info-card.red { background: var(--red-l); border-left: 3px solid var(--red); color: #7f1d1d; }
+  .info-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem; }
+
+  .scenario-section { margin-top: 0.5rem; }
+  .scenario-label { font-size: 0.75rem; color: var(--gray-400); margin-bottom: 0.6rem; font-weight: 600; letter-spacing: 0.03em; }
+  .scenario-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .scenario-pill { padding: 0.5rem 0.95rem; border-radius: 20px; border: 1.5px solid var(--gray-200); background: var(--surface); font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--gray-700); transition: all .15s; }
+  .scenario-pill:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-l); }
+
+  .success-overlay { position: fixed; inset: 0; background: var(--green); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .success-overlay.visible { opacity: 1; pointer-events: all; }
+  .success-overlay .big-icon { font-size: 4rem; }
+  .success-overlay h2 { color: #fff; font-size: 1.3rem; font-weight: 700; text-align: center; padding: 0 1.5rem; max-width: 420px; }
+  .success-overlay p { color: rgba(255,255,255,0.8); font-size: 0.9rem; text-align: center; padding: 0 1.5rem; max-width: 420px; }
+
+  .option-card { background: var(--surface); border-radius: var(--r-md); padding: 0.9rem 1rem; border: 1.5px solid var(--gray-200); cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+  .option-card:hover { border-color: var(--blue); background: var(--blue-l); }
+  .option-icon { font-size: 1.4rem; }
+  .option-text { font-size: 0.9rem; font-weight: 600; color: var(--gray-700); }
+
+  .countdown-ring { width: 90px; height: 90px; border-radius: 50%; background: conic-gradient(var(--yellow) 0%, var(--yellow-l) 0%); display: flex; align-items: center; justify-content: center; margin: 1rem auto; position: relative; }
+  .countdown-ring::before { content: ''; position: absolute; width: 70px; height: 70px; background: var(--surface); border-radius: 50%; }
+  .countdown-num { position: relative; z-index: 1; font-size: 1.3rem; font-weight: 800; color: var(--yellow); }
+  .countdown-ring.lg { width: 130px; height: 130px; margin: 0.5rem auto; }
+  .countdown-ring.lg::before { width: 106px; height: 106px; }
+  .countdown-ring.lg .countdown-num { font-size: 1.9rem; }
+
+  .qr-box { background: #fff; border: 2px solid var(--gray-200); border-radius: var(--r-md); padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
+  .qr-placeholder { width: 140px; height: 140px; background: repeating-conic-gradient(var(--gray-900) 0% 25%, #fff 0% 50%) 0 0 / 14px 14px; border-radius: 4px; position: relative; }
+  .qr-placeholder::after { content: 'UPI'; position: absolute; inset: 50%; transform: translate(-50%,-50%); background: #fff; padding: 2px 6px; font-size: 0.7rem; font-weight: 800; border-radius: 3px; white-space: nowrap; }
+  .qr-amount { font-size: 1.4rem; font-weight: 800; color: var(--ink); }
+  .qr-sub { font-size: 0.78rem; color: var(--gray-500); }
+
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+  .summary-tile { background: var(--surface); border-radius: var(--r-md); padding: 1rem; box-shadow: var(--shadow); text-align: center; }
+  .summary-num { font-size: 2rem; font-weight: 800; color: var(--ink); line-height: 1; }
+  .summary-lbl { font-size: 0.72rem; color: var(--gray-500); margin-top: 0.3rem; font-weight: 500; }
+  .summary-tile.green .summary-num { color: var(--green); }
+  .summary-tile.yellow .summary-num { color: var(--yellow); }
+
+  #screen-ops { background: #f0f4f8; }
+  .ops-header { background: var(--gray-900); padding: 1.4rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .ops-brand { color: #fff; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px; }
+  .ops-brand span { color: #34d399; }
+  .ops-sub { font-size: 0.72rem; color: #64748b; margin-top: 0.15rem; }
+  .ops-nav-btn { background: rgba(255,255,255,.08); color: #cbd5e1; border: none; padding: 0.5rem 1rem; border-radius: var(--r-sm); font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .ops-nav-btn:hover { background: rgba(255,255,255,.15); }
+  .ops-nav-btn.active { background: var(--blue); color: #fff; }
+  .ops-body { flex: 1; padding: 1.5rem 2rem 3rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  @media (max-width: 900px) { .metrics-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 500px) { .metrics-grid { grid-template-columns: 1fr; } }
+  .metric-card { background: var(--surface); border-radius: var(--r-md); padding: 1.2rem 1.3rem; box-shadow: var(--shadow); border-top: 3px solid transparent; }
+  .metric-card.mc-total { border-color: var(--gray-400); }
+  .metric-card.mc-inline { border-color: var(--green); }
+  .metric-card.mc-failed { border-color: #eab308; }
+  .metric-card.mc-escal { border-color: var(--red); }
+  .metric-card.mc-defl { border-color: var(--blue); }
+  .metric-card.mc-swipe { border-color: #a855f7; }
+  .metric-val { font-size: 1.9rem; font-weight: 800; color: var(--ink); line-height: 1; margin-bottom: 0.3rem; }
+  .metric-lbl { font-size: 0.78rem; color: var(--gray-500); font-weight: 500; }
+  .metric-sub { font-size: 0.68rem; color: var(--gray-400); margin-top: 0.2rem; }
+  .metric-val.green { color: var(--green); }
+  .metric-val.blue { color: var(--blue); }
+  .metric-val.red { color: var(--red); }
+  .metric-val.yellow { color: #ca8a04; }
+  .metric-val.purple { color: #a855f7; }
+
+  .ops-section-title { font-size: 0.8rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 0.75rem; }
+  .ops-card { background: var(--surface); border-radius: var(--r-md); padding: 1.3rem 1.4rem; box-shadow: var(--shadow); margin-bottom: 1.25rem; }
+  .savings-band { background: linear-gradient(135deg, #0f172a, #1e3a5f); border-radius: var(--r-md); padding: 1.3rem 1.4rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+  .savings-val { font-size: 1.8rem; font-weight: 800; color: #34d399; }
+  .savings-lbl { font-size: 0.82rem; color: #94a3b8; margin-top: 0.15rem; }
+  .savings-badge { background: rgba(52,211,153,.15); color: #34d399; padding: 0.4rem 0.9rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+
+  .ops-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  .ops-table th { text-align: left; padding: 0.7rem 0.85rem; border-bottom: 2px solid var(--gray-200); font-weight: 700; color: var(--gray-500); font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  .ops-table td { padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); }
+  .ops-table tr:hover td { background: var(--gray-50); }
+  .tag { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+  .tag-green { background: var(--green-l); color: var(--green-d); }
+  .tag-red { background: var(--red-l); color: var(--red); }
+  .tag-yellow { background: var(--yellow-l); color: var(--yellow); }
+  .tag-blue { background: var(--blue-l); color: var(--blue); }
+
+  .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-btn { padding: 0.4rem 0.9rem; border-radius: 20px; border: 1.5px solid var(--gray-200); background: var(--surface); font-size: 0.78rem; font-weight: 600; cursor: pointer; color: var(--gray-600); }
+  .filter-btn.active { border-color: var(--blue); background: var(--blue-l); color: var(--blue); }
+
+  .footer { background: var(--gray-900); color: var(--gray-500); text-align: center; font-size: 0.72rem; padding: 0.8rem 1rem; margin-top: auto; }
+  .footer span { color: #34d399; }
+
+  .chart-wrap { position: relative; height: 200px; }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .evt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.74rem; color: var(--gray-500); }
+
+  .map-card { border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow); background: var(--surface); }
+  .map-card svg { display: block; width: 100%; height: auto; }
+  .map-caption { padding: 0.8rem 1rem; font-size: 0.88rem; line-height: 1.5; color: var(--gray-700); }
+  .route-flow { animation: routeflow 1.2s linear infinite; }
+  @keyframes routeflow { to { stroke-dashoffset: -28; } }
+  .pulse { animation: pulse 1.8s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+  @keyframes pulse { 0% { transform: scale(.6); opacity: .7; } 100% { transform: scale(1.8); opacity: 0; } }
+
+  .hidden { display: none !important; }
+  .flex-col { display: flex; flex-direction: column; gap: 0.6rem; }
+  .mt-2 { margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<!-- SCREEN 1 · ROLE SELECTOR -->
+<div class="screen active" id="screen-role">
+  <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem 1.5rem;">
+    <div class="role-logo">Fix-It-<span>Fast</span></div>
+    <div class="role-sub">Self-serve exception resolution for delivery partners</div>
+    <div class="role-cards">
+      <button class="role-btn driver" onclick="goDriver()">
+        <span class="role-icon">🛵</span>
+        <div class="role-btn-text-wrap">
+          <span class="role-btn-label">Driver App</span>
+          <span class="role-btn-hint">Handle issues from the field</span>
+        </div>
+      </button>
+      <button class="role-btn ops" onclick="goOps()">
+        <span class="role-icon">📊</span>
+        <div class="role-btn-text-wrap">
+          <span class="role-btn-label">Ops Dashboard</span>
+          <span class="role-btn-hint">Monitor exceptions & deflections</span>
+        </div>
+      </button>
+    </div>
+  </div>
+  <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span></footer>
+</div>
+
+<!-- SCREEN 2 · ACTIVE ORDER -->
+<div class="screen" id="screen-order">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="showScreen('screen-role')">←</button>
+      <div class="top-bar-title">Active Order</div>
+      <div style="font-size:0.72rem;color:var(--gray-400);font-weight:600;">DRIVER APP</div>
+    </div>
+    <div class="driver-body">
+
+      <div class="order-card">
+        <div class="order-id">ORDER #SW-4421</div>
+        <div class="order-rest">Meghana Foods</div>
+        <div class="order-meta"><span>👤 Rajesh</span><span>₹420</span></div>
+        <span class="order-status"><span class="status-dot"></span>Heading to Restaurant</span>
+      </div>
+
+      <div class="info-card yellow hidden" id="orderBanner"></div>
+
+      <div class="swipe-wrap">
+        <div class="swipe-label">Slide to confirm you've arrived</div>
+        <div class="swipe-track" id="swipeTrack">
+          <div class="swipe-fill" id="swipeFill"></div>
+          <div class="swipe-knob" id="swipeKnob">→</div>
+          <div class="swipe-text" id="swipeText">Swipe to Confirm Arrival</div>
+        </div>
+      </div>
+
+      <button class="btn btn-red hidden" id="unableBtn" onclick="showGPSFlow()">Unable to Arrive?</button>
+
+      <div class="scenario-section">
+        <div class="scenario-label">REPORT AN ISSUE</div>
+        <div class="scenario-pills">
+          <div class="scenario-pill" onclick="showIssueFlow('closed')">Store is Closed</div>
+          <div class="scenario-pill" onclick="showIssueFlow('locate')">Unable to Locate Restaurant</div>
+          <div class="scenario-pill" onclick="showIssueFlow('notready')">Food is Not Ready</div>
+          <div class="scenario-pill" onclick="resetStateAndGo('screen-cod')">Customer has no cash</div>
+        </div>
+      </div>
+
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+
+  <div class="popup-overlay" id="gpsErrorPopup">
+    <div class="popup-sheet">
+      <div class="popup-icon">⚠️</div>
+      <div class="popup-title" id="gpsPopupTitle">You're too far from the restaurant</div>
+      <div class="popup-body" id="gpsPopupBody">GPS shows you are about 200m from Meghana Foods. Check your location and try again.</div>
+      <div class="popup-actions" id="gpsPopupActions">
+        <button class="btn btn-gray" onclick="closePopup('gpsErrorPopup')">Okay, I'll check</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 3 · GPS FIX FLOW -->
+<div class="screen" id="screen-gps">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="goBackFromGPS()">←</button>
+      <div class="top-bar-title">Location Check</div>
+    </div>
+    <div class="driver-body">
+
+      <div class="order-card">
+        <div class="order-id">ORDER #SW-4421</div>
+        <div class="order-rest">Meghana Foods</div>
+        <div class="order-meta"><span>👤 Rajesh</span><span>₹420</span></div>
+      </div>
+
+      <div id="gpsPrimary">
+        <div class="info-card yellow" id="gpsQuestion">
+          <h4>📍 GPS thinks you're 200m away</h4>
+          You're at Meghana Foods, but your phone says otherwise. Are you actually there?
+        </div>
+        <div class="flex-col" id="gpsButtons">
+          <button class="btn btn-green" onclick="confirmLocation()">Yes, I'm here</button>
+          <button class="btn btn-gray" onclick="denyLocation()">No, I'm not</button>
+        </div>
+      </div>
+
+      <div id="gpsContext" class="hidden">
+        <div class="info-card yellow">
+          <h4>What's happening?</h4>
+          Tell us so we can help.
+        </div>
+        <div class="flex-col">
+          <div class="option-card" onclick="gpsOnMyWay()">
+            <span class="option-icon">🧭</span>
+            <span class="option-text">I'm on my way</span>
+          </div>
+          <div class="option-card" onclick="gpsCannotFind()">
+            <span class="option-icon">🗺️</span>
+            <span class="option-text">I can't find the restaurant</span>
+          </div>
+          <div class="option-card" onclick="gpsStoreClosed()">
+            <span class="option-icon">🏪</span>
+            <span class="option-text">The restaurant is closed</span>
+          </div>
+          <div class="option-card" onclick="gpsSomethingElse()">
+            <span class="option-icon">📞</span>
+            <span class="option-text">Something else</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="gpsOnMyWayMsg" class="flex-col hidden">
+        <div class="info-card yellow">
+          <h4>🧭 Head to the restaurant</h4>
+          Please navigate to Meghana Foods and swipe again when you arrive.
+        </div>
+        <button class="btn btn-outline" onclick="returnToOrderAfterRedirect()">Back to Active Order</button>
+        <button class="btn btn-call" onclick="callSupport('GPS Mismatch')">📞 Call Support</button>
+      </div>
+
+      <div id="gpsCannotFindMsg" class="flex-col hidden">
+        <div class="map-card">
+          <svg viewBox="0 0 340 200" role="img" aria-label="Map to Meghana Foods">
+            <rect width="340" height="200" fill="#e8eef5"/>
+            <g fill="#f8fafc">
+              <rect x="8" y="8" width="90" height="62" rx="6"/><rect x="122" y="8" width="70" height="62" rx="6"/>
+              <rect x="216" y="8" width="116" height="62" rx="6"/><rect x="8" y="94" width="90" height="46" rx="6"/>
+              <rect x="122" y="94" width="70" height="46" rx="6"/><rect x="216" y="94" width="116" height="46" rx="6"/>
+            </g>
+            <g stroke="#ffffff" stroke-width="10" stroke-linecap="round">
+              <line x1="110" y1="0" x2="110" y2="200"/><line x1="204" y1="0" x2="204" y2="200"/>
+              <line x1="0" y1="82" x2="340" y2="82"/><line x1="0" y1="152" x2="340" y2="152"/>
+            </g>
+            <path d="M204 82 C 192 66, 188 60, 188 52 a16 16 0 1 1 32 0 c0 8 -4 14 -16 30 z" fill="#dc2626"/>
+            <circle cx="204" cy="52" r="6" fill="#fff"/>
+            <rect x="222" y="34" width="104" height="22" rx="11" fill="#0f172a"/>
+            <text x="274" y="49" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">Meghana Foods</text>
+          </svg>
+          <div class="map-caption">Here's the exact location of Meghana Foods.</div>
+        </div>
+        <button class="btn btn-green" onclick="foundRestaurant()">I Found It</button>
+        <button class="btn btn-gray" onclick="returnToOrderAfterRedirect()">Back to Active Order</button>
+        <button class="btn btn-call" onclick="callSupport('Locate Restaurant')">📞 Call Support</button>
+      </div>
+
+      <div id="gpsStoreClosedMsg" class="flex-col hidden">
+        <div class="info-card yellow">
+          <h4>🏪 Store is closed</h4>
+          Let's route you to the store closure flow.
+        </div>
+        <button class="btn btn-green" onclick="showIssueFlow('closed')">Continue to Store Closed Flow</button>
+        <button class="btn btn-call" onclick="callSupport('Store Closed')">📞 Call Support</button>
+      </div>
+
+      <div id="gpsSomethingElseMsg" class="flex-col hidden">
+        <div class="info-card yellow" style="text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:0.4rem;">📞</div>
+          <strong>Connecting to support...</strong>
+          <div style="margin-top:0.3rem;font-size:0.82rem;color:var(--gray-500);">This is the 6-min idle wait Fix-It-Fast was built to prevent.</div>
+        </div>
+        <button class="btn btn-outline" onclick="resetDemo()">← Back to Home</button>
+      </div>
+
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+
+  <div class="success-overlay" id="locationSuccess">
+    <div class="big-icon">✅</div>
+    <h2>Location confirmed.</h2>
+    <p>Marking you as arrived at Meghana Foods.</p>
+  </div>
+</div>
+
+<!-- SCREEN 4 · ARRIVED -->
+<div class="screen" id="screen-arrived">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="resetDemo()">←</button>
+      <div class="top-bar-title">Pick Up</div>
+    </div>
+    <div class="driver-body">
+      <div class="info-card green" style="text-align:center;padding:1.5rem;">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">🏪</div>
+        <h4>Arrived at Restaurant</h4>
+        <div style="margin-top:0.4rem;">You're at Meghana Foods. Pick up the order for Rajesh.</div>
+      </div>
+      <button class="btn btn-green" onclick="showDriverHome()">View My Summary</button>
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 5 · ISSUE FLOWS -->
+<div class="screen" id="screen-storeclosed">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="goBackFromStoreClosed()">←</button>
+      <div class="top-bar-title" id="issueTitle">Report an Issue</div>
+    </div>
+    <div class="driver-body">
+
+      <div class="order-card">
+        <div class="order-id">ORDER #SW-4421</div>
+        <div class="order-rest">Meghana Foods</div>
+        <div class="order-meta"><span>👤 Rajesh</span><span>₹420</span></div>
+        <span class="order-status"><span class="status-dot"></span>Heading to Restaurant</span>
+      </div>
+
+      <div id="photoStep" class="hidden flex-col">
+        <div class="info-card yellow">
+          <h4>📷 Take a photo of the closed storefront</h4>
+          Please take a photo of the closed storefront. In-app camera only.
+        </div>
+        <button class="btn btn-outline" id="captureBtn" onclick="capturePhoto()">📷 Capture Photo</button>
+        <div id="photoVerified" class="info-card green hidden" style="text-align:center;">
+          <div style="font-size:1.5rem;">✅</div>
+          <strong>Photo verified</strong>
+        </div>
+        <button class="btn btn-call" onclick="callSupport('Store Closed')">📞 Call Support</button>
+      </div>
+
+      <div id="countdownStep" class="hidden flex-col" style="align-items:center;text-align:center;">
+        <div class="info-card yellow" style="width:100%;text-align:left;">
+          <h4>🔍 Verifying store status with merchant...</h4>
+          Reaching out to Meghana Foods to confirm.
+        </div>
+        <div class="countdown-ring" id="countdownRing"><div class="countdown-num" id="countdownNum">5</div></div>
+      </div>
+
+      <div id="locateStep" class="hidden flex-col">
+        <div class="map-card">
+          <svg viewBox="0 0 340 200" role="img" aria-label="Map to Meghana Foods">
+            <rect width="340" height="200" fill="#e8eef5"/>
+            <g fill="#f8fafc">
+              <rect x="8" y="8" width="90" height="62" rx="6"/><rect x="122" y="8" width="70" height="62" rx="6"/>
+              <rect x="216" y="8" width="116" height="62" rx="6"/><rect x="8" y="94" width="90" height="46" rx="6"/>
+              <rect x="122" y="94" width="70" height="46" rx="6"/><rect x="216" y="94" width="116" height="46" rx="6"/>
+            </g>
+            <g stroke="#ffffff" stroke-width="10" stroke-linecap="round">
+              <line x1="110" y1="0" x2="110" y2="200"/><line x1="204" y1="0" x2="204" y2="200"/>
+              <line x1="0" y1="82" x2="340" y2="82"/><line x1="0" y1="152" x2="340" y2="152"/>
+            </g>
+            <path d="M204 82 C 192 66, 188 60, 188 52 a16 16 0 1 1 32 0 c0 8 -4 14 -16 30 z" fill="#dc2626"/>
+            <circle cx="204" cy="52" r="6" fill="#fff"/>
+            <rect x="222" y="34" width="104" height="22" rx="11" fill="#0f172a"/>
+            <text x="274" y="49" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">Meghana Foods</text>
+          </svg>
+          <div class="map-caption">Here's the exact location of Meghana Foods. Tap Navigate to open your map app.</div>
+        </div>
+        <div id="locateButtons" class="flex-col">
+          <button class="btn btn-green" onclick="openNavMap()">Navigate</button>
+          <button class="btn btn-gray" onclick="foundRestaurant()">I Found It</button>
+        </div>
+        <button class="btn btn-call" onclick="callSupport('Locate Restaurant')">📞 Call Support</button>
+      </div>
+
+      <div id="notReadyStep" class="hidden flex-col">
+        <div class="info-card yellow">
+          <h4>⏰ Food isn't ready</h4>
+          Meghana Foods is running late on your order.
+        </div>
+        <div id="delayButtons" class="flex-col">
+          <button class="btn btn-green" onclick="reportDelay('customer')">Notify Customer of Delay</button>
+          <button class="btn btn-yellow" onclick="reportDelay('merchant')">Report Merchant Delay</button>
+        </div>
+        <div id="delayMsg" class="info-card green hidden" style="text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:0.3rem;">✅</div>
+          <strong>Merchant notified. Customer informed of a 5-minute delay.</strong>
+        </div>
+        <button class="btn btn-call" onclick="callSupport('Food Not Ready')">📞 Call Support</button>
+      </div>
+
+      <div id="closedResolved" class="hidden flex-col">
+        <div class="info-card green" style="text-align:center;padding:1.4rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">🎉</div>
+          <strong>Photo logged. You are unassigned with no penalty and available for new orders.</strong>
+          <div style="margin-top:0.6rem;font-size:0.82rem;color:var(--green-d);opacity:0.85;">
+            Ops team is verifying the store status with the merchant. Your earnings are protected either way.
+          </div>
+        </div>
+        <button class="btn btn-green" onclick="showDriverHome()">View My Summary</button>
+      </div>
+
+      <div class="success-overlay" id="locateSuccess">
+        <div class="big-icon">📍</div>
+        <h2>Location confirmed. You can now proceed.</h2>
+        <p>Returning to your active order…</p>
+      </div>
+
+      <div class="success-overlay" id="delayOverlay">
+        <div class="big-icon">✅</div>
+        <h2>Merchant notified.</h2>
+        <p>Customer informed of a 5-minute delay.</p>
+        <div class="countdown-ring lg" id="delayRing"><div class="countdown-num" id="delayNum">5:00</div></div>
+        <p style="font-size:0.75rem;">Visual only · compressed for the demo</p>
+      </div>
+
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 5b · MOCK NAV MAP -->
+<div class="screen" id="screen-navmap">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="backFromNavMap()">←</button>
+      <div class="top-bar-title">Navigate</div>
+    </div>
+    <div class="driver-body">
+      <div class="map-card">
+        <svg viewBox="0 0 340 380" role="img" aria-label="Mock route to Meghana Foods">
+          <rect width="340" height="380" fill="#e8eef5"/>
+          <g fill="#f8fafc">
+            <rect x="8" y="8" width="44" height="100" rx="6"/><rect x="68" y="8" width="94" height="100" rx="6"/>
+            <rect x="178" y="8" width="74" height="100" rx="6"/>
+            <rect x="68" y="134" width="94" height="78" rx="6"/><rect x="178" y="134" width="74" height="78" rx="6"/>
+            <rect x="268" y="134" width="64" height="78" rx="6"/><rect x="8" y="134" width="44" height="78" rx="6"/>
+            <rect x="68" y="238" width="94" height="130" rx="6"/><rect x="178" y="238" width="74" height="130" rx="6"/>
+            <rect x="268" y="238" width="64" height="130" rx="6"/>
+          </g>
+          <rect x="8" y="238" width="44" height="130" rx="8" fill="#bbf7d0"/>
+          <g stroke="#ffffff" stroke-width="12" stroke-linecap="round">
+            <line x1="60" y1="0" x2="60" y2="380"/><line x1="170" y1="0" x2="170" y2="380"/><line x1="260" y1="0" x2="260" y2="380"/>
+            <line x1="0" y1="120" x2="340" y2="120"/><line x1="0" y1="225" x2="340" y2="225"/>
+          </g>
+          <polyline points="60,330 60,225 170,225 170,120 260,120 260,64" fill="none" stroke="#1d4ed8" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+          <polyline class="route-flow" points="60,330 60,225 170,225 170,120 260,120 260,64" fill="none" stroke="#93c5fd" stroke-width="3" stroke-dasharray="6 8" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="60" cy="330" r="8" fill="#1d4ed8" stroke="#fff" stroke-width="3"/>
+          <path d="M260 64 C 248 48, 244 42, 244 34 a16 16 0 1 1 32 0 c0 8 -4 14 -16 30 z" fill="#dc2626"/>
+          <circle cx="260" cy="34" r="6" fill="#fff"/>
+          <rect x="200" y="62" width="104" height="22" rx="11" fill="#0f172a"/>
+          <text x="252" y="77" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">Meghana Foods</text>
+        </svg>
+        <div class="map-caption"><strong>Mock map view.</strong> Follow the blue route to Meghana Foods.</div>
+      </div>
+      <button class="btn btn-gray" onclick="backFromNavMap()">Back</button>
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 6 · COD → UPI -->
+<div class="screen" id="screen-cod">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="resetStateAndGo('screen-order')">←</button>
+      <div class="top-bar-title">Payment Issue</div>
+    </div>
+    <div class="driver-body">
+      <div class="order-card">
+        <div class="order-id">ORDER #SW-4421</div>
+        <div class="order-rest">Meghana Foods</div>
+        <div class="order-meta"><span>👤 Rajesh</span><span>₹420</span></div>
+        <div style="margin-top:0.6rem;"><span class="tag tag-yellow">💵 Payment: Cash on Delivery</span></div>
+      </div>
+      <div id="codInitial">
+        <button class="btn btn-red" onclick="showUPI()">Customer doesn't have cash</button>
+      </div>
+      <div id="upiSection" class="hidden flex-col" style="align-items:center;">
+        <div class="info-card yellow" style="width:100%;text-align:left;">
+          <h4>💡 Switch to UPI</h4>
+          Ask the customer to scan this QR code to pay directly from their phone.
+        </div>
+        <div class="qr-box" style="width:100%;">
+          <div class="qr-placeholder"></div>
+          <div class="qr-amount">₹420</div>
+          <div class="qr-sub">Ask customer to scan to pay via UPI</div>
+        </div>
+        <button class="btn btn-green" style="width:100%;" onclick="confirmPayment()">Payment Received</button>
+        <button class="btn btn-outline" style="width:100%;" onclick="refusedToPay()">Customer refuses to pay</button>
+        <button class="btn btn-call" style="width:100%;" onclick="callSupport('COD Block')">📞 Call Support</button>
+      </div>
+      <div id="codEscalation" class="hidden flex-col" style="align-items:center;">
+        <div class="info-card red" style="width:100%;text-align:left;">
+          <h4>⚠️ Customer refuses to pay</h4>
+          The system can't resolve this on its own. Connecting you to support to decide the next step.
+        </div>
+        <div class="info-card yellow" style="width:100%;text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:0.4rem;">📞</div>
+          <strong>Connecting to support...</strong>
+          <div style="margin-top:0.3rem;font-size:0.82rem;color:var(--gray-500);">This is the 6-min idle wait Fix-It-Fast was built to prevent.</div>
+        </div>
+        <button class="btn btn-outline" style="width:100%;" onclick="showDriverHome()">← Back to Home</button>
+      </div>
+      <div id="paymentDone" class="hidden">
+        <div class="info-card green" style="text-align:center;padding:1.4rem;">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">✅</div>
+          <strong>Payment confirmed.</strong>
+          <div style="margin-top:0.4rem;font-size:0.85rem;">Order marked as paid via UPI.</div>
+        </div>
+        <div class="mt-2"><button class="btn btn-outline" onclick="showDriverHome()">View My Summary</button></div>
+      </div>
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 6b · SHARED CALL SUPPORT ESCALATION -->
+<div class="screen" id="screen-support">
+  <div class="driver-screen">
+    <div class="top-bar">
+      <button class="top-bar-back" onclick="backFromSupport()">←</button>
+      <div class="top-bar-title">Support</div>
+    </div>
+    <div class="driver-body">
+      <div class="info-card red" style="text-align:left;">
+        <h4>⚠️ Escalating to support</h4>
+        <div id="supportReason">You've asked for a support agent to take over.</div>
+      </div>
+      <div class="info-card yellow" style="text-align:center;">
+        <div style="font-size:1.5rem;margin-bottom:0.4rem;">📞</div>
+        <strong>Connecting to support...</strong>
+        <div style="margin-top:0.3rem;font-size:0.82rem;color:var(--gray-500);">This is the 6-min idle wait Fix-It-Fast was built to prevent.</div>
+      </div>
+      <button class="btn btn-outline" onclick="resetDemo()">← Back to Home</button>
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 7 · DRIVER HOME -->
+<div class="screen" id="screen-driverhome">
+  <div class="driver-screen">
+    <div class="top-bar"><div class="top-bar-title" style="font-size:1.1rem;">👋 Great work today</div></div>
+    <div class="driver-body">
+      <div class="summary-grid">
+        <div class="summary-tile"><div class="summary-num">12</div><div class="summary-lbl">Orders Completed</div></div>
+        <div class="summary-tile green"><div class="summary-num">4</div><div class="summary-lbl">Issues Resolved Inline</div></div>
+        <div class="summary-tile yellow"><div class="summary-num">1</div><div class="summary-lbl">Support Calls Needed</div></div>
+        <div class="summary-tile"><div class="summary-num">80%</div><div class="summary-lbl">Self-Serve Rate</div></div>
+      </div>
+      <div class="info-card green" style="text-align:center;padding:1.2rem;">
+        <div style="font-size:1.6rem;margin-bottom:0.4rem;">🏆</div>
+        <strong>You avoided 4 support calls today.</strong>
+        <div style="margin-top:0.3rem;font-size:0.82rem;color:var(--green-d);opacity:0.8;">That keeps your acceptance rate high and tips flowing.</div>
+      </div>
+      <button class="btn btn-outline" onclick="resetDemo()">← Back to Role Selector</button>
+    </div>
+    <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span> · <button onclick="resetDemo()" style="background:none;border:none;color:#34d399;font-size:0.72rem;cursor:pointer;font-weight:600;">Reset Demo</button></footer>
+  </div>
+</div>
+
+<!-- SCREEN 8 · OPS DASHBOARD -->
+<div class="screen" id="screen-ops">
+  <div class="ops-header">
+    <div>
+      <div class="ops-brand">Fix-It-<span>Fast</span> Dashboard</div>
+      <div class="ops-sub">Modeled estimates from frontline ops benchmarks. Not production data.</div>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="ops-nav-btn active" onclick="switchOpsTab('overview')">Overview</button>
+      <button class="ops-nav-btn" onclick="switchOpsTab('log')">Issue Log</button>
+      <button class="ops-nav-btn" onclick="resetDemo()">← Exit</button>
+    </div>
+  </div>
+
+  <div id="ops-overview" class="ops-body">
+    <div class="metrics-grid">
+      <div class="metric-card mc-total">
+        <div class="metric-val">247</div>
+        <div class="metric-lbl">Total Exceptions Modeled</div>
+      </div>
+      <div class="metric-card mc-inline">
+        <div class="metric-val green">148</div>
+        <div class="metric-lbl">Resolved Inline</div>
+      </div>
+      <div class="metric-card mc-failed">
+        <div class="metric-val yellow">31</div>
+        <div class="metric-lbl">Failed Self-Serve</div>
+        <div class="metric-sub">Tried inline, then called</div>
+      </div>
+      <div class="metric-card mc-escal">
+        <div class="metric-val red">68</div>
+        <div class="metric-lbl">Direct Escalations</div>
+        <div class="metric-sub">Called support straight away</div>
+      </div>
+      <div class="metric-card mc-defl">
+        <div class="metric-val blue">60%</div>
+        <div class="metric-lbl">Deflection Rate</div>
+        <div class="metric-sub">148 / 247 resolved inline</div>
+      </div>
+      <div class="metric-card mc-swipe">
+        <div class="metric-val purple">1.4</div>
+        <div class="metric-lbl">Avg Failed Swipes</div>
+        <div class="metric-sub">Before finding escape hatch</div>
+      </div>
+    </div>
+    <div class="savings-band">
+      <div><div class="savings-val">₹1.2 Cr</div><div class="savings-lbl">Modeled Monthly Savings in support payroll overhead</div></div>
+      <div class="savings-badge">📉 99 fewer calls / day</div>
+    </div>
+    <div class="ops-card">
+      <div class="ops-section-title">Deflection Rate — Last 7 Days</div>
+      <div class="chart-wrap"><canvas id="deflectionChart"></canvas></div>
+    </div>
+    <div class="ops-card">
+      <div class="ops-section-title">Recent Exception Log</div>
+      <div style="overflow-x:auto;">
+        <table class="ops-table">
+          <thead><tr><th>Order ID</th><th>Issue Type</th><th>Resolved Inline</th><th>Time to Resolve</th><th>Status</th></tr></thead>
+          <tbody id="opsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="ops-log" class="ops-body hidden">
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterTable('all', this)">All</button>
+      <button class="filter-btn" onclick="filterTable('GPS Mismatch', this)">GPS Mismatch</button>
+      <button class="filter-btn" onclick="filterTable('Store Closed', this)">Store Closed</button>
+      <button class="filter-btn" onclick="filterTable('COD Block', this)">COD Block</button>
+      <button class="filter-btn" onclick="filterTable('Locate Restaurant', this)">Locate Restaurant</button>
+      <button class="filter-btn" onclick="filterTable('Food Not Ready', this)">Food Not Ready</button>
+    </div>
+    <div class="ops-card">
+      <div class="ops-section-title">Full Issue Log</div>
+      <div style="overflow-x:auto;">
+        <table class="ops-table">
+          <thead><tr><th>Order ID</th><th>Issue Type</th><th>Resolved Inline</th><th>Time to Resolve</th><th>Support Call Needed</th><th>Resolution Event</th></tr></thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">Fix-It-Fast | Modeled prototype by <span>Adi Golla</span></footer>
+</div>
+
+<script>
+const STATE_KEY = 'fif_state';
+const INITIAL_STATE = { swipeAttempts:0, gpsRetryMode:false, gpsRetries:0, redirects:0, driverIssuesResolved:0 };
+let state = Object.assign({}, INITIAL_STATE);
+let flowStartTs = Date.now();
+let flowToken = 0;
+let sessionLog = [];
+let countdownTimer = null, delayTimer = null;
+let supportReturnScreen = 'screen-order';
+
+function later(fn, ms) { const t = flowToken; return setTimeout(() => { if (t === flowToken) fn(); }, ms); }
+function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e){} }
+function loadState() { try { const s = localStorage.getItem(STATE_KEY); if(s) state = Object.assign({}, INITIAL_STATE, JSON.parse(s)); } catch(e){} }
+function killCountdown() { if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; } if (delayTimer) { clearInterval(delayTimer); delayTimer = null; } }
+
+function resetState() {
+  killCountdown();
+  flowToken++;
+  state = Object.assign({}, INITIAL_STATE);
+  saveState();
+  flowStartTs = Date.now();
+  resetSwipe();
+  const st = document.getElementById('swipeText');
+  if (st) { st.textContent = 'Swipe to Confirm Arrival'; st.style.opacity = '1'; }
+  const ob = document.getElementById('orderBanner');
+  if (ob) ob.classList.add('hidden');
+  const ub = document.getElementById('unableBtn');
+  if (ub) ub.classList.add('hidden');
+  resetGpsDom();
+  resetIssueDom();
+  const codInit = document.getElementById('codInitial');
+  const upiSec = document.getElementById('upiSection');
+  const codEsc = document.getElementById('codEscalation');
+  const payDone = document.getElementById('paymentDone');
+  if (codInit) codInit.classList.remove('hidden');
+  if (upiSec) upiSec.classList.add('hidden');
+  if (codEsc) codEsc.classList.add('hidden');
+  if (payDone) payDone.classList.add('hidden');
+}
+
+function resetGpsDom() {
+  ['gpsPrimary','gpsQuestion','gpsButtons'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
+  const ctx = document.getElementById('gpsContext'); if(ctx) ctx.classList.add('hidden');
+  ['gpsOnMyWayMsg','gpsCannotFindMsg','gpsStoreClosedMsg','gpsSomethingElseMsg'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.classList.add('hidden');
+  });
+  const loc = document.getElementById('locationSuccess'); if(loc) loc.classList.remove('visible');
+}
+
+function resetIssueDom() {
+  killCountdown();
+  ['photoStep','countdownStep','locateStep','notReadyStep','closedResolved'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.classList.add('hidden');
+  });
+  const cb = document.getElementById('captureBtn');
+  if (cb) { cb.textContent = '📷 Capture Photo'; cb.disabled = false; cb.classList.remove('hidden'); }
+  const pv = document.getElementById('photoVerified'); if(pv) pv.classList.add('hidden');
+  const cn = document.getElementById('countdownNum'); if(cn) cn.textContent = '5';
+  const cr = document.getElementById('countdownRing'); if(cr) cr.style.background = 'conic-gradient(var(--yellow) 0%, var(--yellow-l) 0%)';
+  const lb = document.getElementById('locateButtons'); if(lb) lb.classList.remove('hidden');
+  const ls = document.getElementById('locateSuccess'); if(ls) ls.classList.remove('visible');
+  const db = document.getElementById('delayButtons'); if(db) db.classList.remove('hidden');
+  const dm = document.getElementById('delayMsg'); if(dm) dm.classList.add('hidden');
+  const dovr = document.getElementById('delayOverlay'); if(dovr) dovr.classList.remove('visible');
+  const dn = document.getElementById('delayNum'); if(dn) dn.textContent = '5:00';
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goDriver() { resetState(); showScreen('screen-order'); }
+function goOps() { showScreen('screen-ops'); setTimeout(() => initChart(), 80); buildTables(); }
+function goBackFromGPS() { killCountdown(); flowToken++; resetGpsDom(); showScreen('screen-order'); }
+function goBackFromStoreClosed() { killCountdown(); resetState(); showScreen('screen-order'); }
+function resetStateAndGo(id) { resetState(); showScreen(id); }
+function resetDemo() { resetState(); showScreen('screen-role'); }
+
+/* SWIPE */
+const track = () => document.getElementById('swipeTrack');
+const knob = () => document.getElementById('swipeKnob');
+const fill = () => document.getElementById('swipeFill');
+function resetSwipe() {
+  const k = knob(), f = fill(); if(!k||!f) return;
+  k.classList.add('snapping'); k.style.left = '5px'; f.style.width = '58px';
+  setTimeout(() => k.classList.remove('snapping'), 320);
+}
+(function initSwipe() {
+  let dragging=false, startX=0, currentX=0;
+  const MAX_LEFT = () => track().offsetWidth - 58;
+  function onStart(e){ dragging=true; startX=(e.touches?e.touches[0].clientX:e.clientX)-(parseInt(knob().style.left)||5); knob().classList.remove('snapping'); document.getElementById('swipeText').style.opacity='0'; }
+  function onMove(e){ if(!dragging) return; e.preventDefault(); currentX=(e.touches?e.touches[0].clientX:e.clientX)-startX; currentX=Math.max(5,Math.min(currentX,MAX_LEFT())); knob().style.left=currentX+'px'; fill().style.width=(currentX+53)+'px'; }
+  function onEnd(){ if(!dragging) return; dragging=false; document.getElementById('swipeText').style.opacity='1'; const pct=(currentX-5)/(MAX_LEFT()-5); if(pct>0.85) triggerSwipeAttempt(); else resetSwipe(); }
+  document.getElementById('swipeTrack').addEventListener('mousedown', onStart);
+  document.getElementById('swipeTrack').addEventListener('touchstart', onStart, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchend', onEnd);
+})();
+
+function setOrderBanner(t) { const b=document.getElementById('orderBanner'); if(t){b.innerHTML=t; b.classList.remove('hidden');} else b.classList.add('hidden'); }
+function setGpsPopup(mode) {
+  const t=document.getElementById('gpsPopupTitle'), b=document.getElementById('gpsPopupBody'), a=document.getElementById('gpsPopupActions');
+  if(mode==='normal'){ t.textContent="You're too far from the restaurant"; b.textContent='GPS shows you are about 200m from Meghana Foods. Check your location and try again.'; a.classList.remove('hidden'); }
+  else if(mode==='retry'){ t.textContent="We still can't verify your location"; b.textContent='Please try swiping again.'; a.classList.remove('hidden'); }
+  else { t.textContent='Unable to verify location.'; b.textContent='Connecting to support.'; a.classList.add('hidden'); }
+}
+
+function triggerSwipeAttempt() {
+  if(state.gpsRetryMode) return handleRetrySwipe();
+  state.swipeAttempts++;
+  saveState();
+  if(state.swipeAttempts === 1) flowStartTs = Date.now();
+  setOrderBanner(null);
+  resetSwipe();
+  setGpsPopup('normal');
+  showPopup('gpsErrorPopup');
+  document.getElementById('unableBtn').classList.remove('hidden');
+}
+function handleRetrySwipe() {
+  state.gpsRetries++; saveState();
+  resetSwipe();
+  if(state.gpsRetries >= 3){
+    setGpsPopup('final');
+    showPopup('gpsErrorPopup');
+    later(()=>{ closePopup('gpsErrorPopup'); goSupportFallback(); }, 2000);
+  } else {
+    setGpsPopup('retry');
+    showPopup('gpsErrorPopup');
+  }
+}
+function showPopup(id){ document.getElementById(id).classList.add('visible'); }
+function closePopup(id){ document.getElementById(id).classList.remove('visible'); }
+
+/* GPS FIX FLOW */
+function showGPSFlow() { resetGpsDom(); showScreen('screen-gps'); }
+function completeSwipe() {
+  const k=knob(), f=fill(), max=track().offsetWidth-58;
+  k.style.left=max+'px'; f.style.width=(max+53)+'px'; f.style.opacity='0.45';
+  document.getElementById('swipeText').textContent = '✓ Arrival confirmed';
+}
+function confirmLocation() {
+  document.getElementById('gpsPrimary').classList.add('hidden');
+  logEvent({ type:'GPS Mismatch', inline:'Y', call:'No', event:'location_confirmed', status:'Resolved' });
+  const o = document.getElementById('locationSuccess'); o.classList.add('visible');
+  later(()=>{ o.classList.remove('visible'); showScreen('screen-order'); setOrderBanner(null); completeSwipe(); later(()=>showScreen('screen-arrived'), 1100); }, 2000);
+}
+function denyLocation() {
+  document.getElementById('gpsPrimary').classList.add('hidden');
+  document.getElementById('gpsContext').classList.remove('hidden');
+}
+function gpsOnMyWay() {
+  document.getElementById('gpsContext').classList.add('hidden');
+  document.getElementById('gpsOnMyWayMsg').classList.remove('hidden');
+  state.redirects++; saveState();
+  logEvent({ type:'GPS Mismatch', inline:'R', call:'No', event:'driver_redirected', status:'Redirected' });
+  later(returnToOrderAfterRedirect, 3500);
+}
+function gpsCannotFind() {
+  document.getElementById('gpsContext').classList.add('hidden');
+  document.getElementById('gpsCannotFindMsg').classList.remove('hidden');
+  logEvent({ type:'Locate Restaurant', inline:'Y', call:'No', event:'location_confirmed_by_driver', status:'Resolved' });
+}
+function gpsStoreClosed() {
+  document.getElementById('gpsContext').classList.add('hidden');
+  document.getElementById('gpsStoreClosedMsg').classList.remove('hidden');
+}
+function gpsSomethingElse() {
+  document.getElementById('gpsContext').classList.add('hidden');
+  document.getElementById('gpsSomethingElseMsg').classList.remove('hidden');
+  logEvent({ type:'GPS Mismatch', inline:'N', call:'Yes', event:'manual_support_fallback', status:'Escalated' });
+}
+function returnToOrderAfterRedirect() {
+  flowToken++;
+  resetGpsDom();
+  state.swipeAttempts = 0; state.gpsRetryMode = false; state.gpsRetries = 0; saveState();
+  resetSwipe();
+  document.getElementById('swipeText').textContent = 'Swipe to Confirm Arrival';
+  const ub = document.getElementById('unableBtn'); if (ub) ub.classList.add('hidden');
+  setOrderBanner('<h4>🧭 Head to Meghana Foods</h4>Please navigate to Meghana Foods and swipe again when you arrive.');
+  showScreen('screen-order');
+}
+function goSupportFallback() {
+  state.gpsRetryMode = false; saveState();
+  setOrderBanner(null);
+  resetGpsDom();
+  document.getElementById('gpsPrimary').classList.add('hidden');
+  document.getElementById('gpsSomethingElseMsg').classList.remove('hidden');
+  logEvent({ type:'GPS Mismatch', inline:'N', call:'Yes', event:'manual_support_fallback', status:'Escalated' });
+  showScreen('screen-gps');
+}
+
+/* DIRECT ISSUE FLOWS */
+function showIssueFlow(type) {
+  resetIssueDom();
+  flowStartTs = Date.now();
+  if (type === 'closed') {
+    document.getElementById('issueTitle').textContent = 'Store Closed';
+    document.getElementById('photoStep').classList.remove('hidden');
+  } else if (type === 'locate') {
+    document.getElementById('issueTitle').textContent = 'Locate Restaurant';
+    document.getElementById('locateStep').classList.remove('hidden');
+  } else if (type === 'notready') {
+    document.getElementById('issueTitle').textContent = 'Food Not Ready';
+    document.getElementById('notReadyStep').classList.remove('hidden');
+  }
+  showScreen('screen-storeclosed');
+}
+
+function openNavMap() { showScreen('screen-navmap'); }
+function backFromNavMap() { showScreen('screen-storeclosed'); }
+function foundRestaurant() {
+  document.getElementById('locateButtons').classList.add('hidden');
+  logEvent({ type:'Locate Restaurant', inline:'Y', call:'No', event:'location_confirmed_by_driver', status:'Resolved' });
+  state.driverIssuesResolved++; saveState();
+  document.getElementById('locateSuccess').classList.add('visible');
+  later(()=>{ resetIssueDom(); showScreen('screen-order'); }, 2400);
+}
+function reportDelay(kind) {
+  document.getElementById('delayButtons').classList.add('hidden');
+  document.getElementById('delayMsg').classList.remove('hidden');
+  logEvent({ type:'Food Not Ready', inline:'Y', call:'No', status:'Resolved', event: kind==='customer' ? 'customer_notified_delay' : 'merchant_delay_reported' });
+  state.driverIssuesResolved++; saveState();
+  later(startDelayOverlay, 1500);
+}
+function startDelayOverlay() {
+  killCountdown();
+  const o = document.getElementById('delayOverlay'), n = document.getElementById('delayNum'), r = document.getElementById('delayRing');
+  let m = 5; n.textContent = '5:00'; r.style.background = 'conic-gradient(var(--yellow) 0%, var(--yellow-l) 0%)'; o.classList.add('visible');
+  delayTimer = setInterval(() => {
+    m--; n.textContent = m + ':00';
+    const pct = ((5-m)/5)*100; r.style.background = `conic-gradient(var(--yellow) ${pct}%, var(--yellow-l) ${pct}%)`;
+    if (m<=0) { killCountdown(); later(()=>{ resetIssueDom(); showScreen('screen-order'); }, 900); }
+  }, 900);
+}
+function capturePhoto() {
+  const b = document.getElementById('captureBtn');
+  b.textContent = '⏳ Processing...'; b.disabled = true;
+  later(()=>{ b.classList.add('hidden'); document.getElementById('photoVerified').classList.remove('hidden');
+    later(()=>{ document.getElementById('photoStep').classList.add('hidden'); startCountdown(); }, 1000);
+  }, 1200);
+}
+function startCountdown() {
+  killCountdown();
+  document.getElementById('countdownStep').classList.remove('hidden');
+  let s = 5; const n = document.getElementById('countdownNum'), r = document.getElementById('countdownRing'); n.textContent = s;
+  countdownTimer = setInterval(()=>{
+    s--; n.textContent = s;
+    const pct = ((5-s)/5)*100; r.style.background = `conic-gradient(var(--yellow) ${pct}%, var(--yellow-l) ${pct}%)`;
+    if (s<=0) {
+      killCountdown();
+      document.getElementById('countdownStep').classList.add('hidden');
+      document.getElementById('closedResolved').classList.remove('hidden');
+      state.driverIssuesResolved++; saveState();
+      logEvent({ type:'Store Closed', inline:'Y', call:'No', event:'merchant_verified_closed', status:'Resolved' });
+    }
+  }, 1000);
+}
+
+/* COD */
+function showUPI() {
+  document.getElementById('codInitial').classList.add('hidden');
+  document.getElementById('upiSection').classList.remove('hidden');
+}
+function confirmPayment() {
+  document.getElementById('upiSection').classList.add('hidden');
+  document.getElementById('paymentDone').classList.remove('hidden');
+  state.driverIssuesResolved++; saveState();
+  logEvent({ type:'COD Block', inline:'Y', call:'No', event:'upi_switch_completed', status:'Resolved' });
+}
+function refusedToPay() {
+  document.getElementById('upiSection').classList.add('hidden');
+  document.getElementById('codEscalation').classList.remove('hidden');
+  logEvent({ type:'COD Block', inline:'N', call:'Yes', event:'customer_refused_payment', status:'Escalated' });
+}
+function showDriverHome() { showScreen('screen-driverhome'); }
+
+/* SHARED CALL SUPPORT */
+function callSupport(contextType) {
+  supportReturnScreen = document.querySelector('.screen.active').id;
+  document.getElementById('supportReason').textContent = `You've asked for a support agent to take over for: ${contextType}.`;
+  logEvent({ type: contextType, inline:'N', call:'Yes', event:'manual_support_fallback', status:'Escalated' });
+  showScreen('screen-support');
+}
+function backFromSupport() {
+  showScreen(supportReturnScreen);
+}
+
+/* OPS */
+const ISSUE_DATA = [
+  { id:'SW-4401', type:'GPS Mismatch', inline:'Y', time:'1m 12s', status:'Resolved', call:'No', event:'location_confirmed' },
+  { id:'SW-4403', type:'Store Closed', inline:'Y', time:'3m 40s', status:'Resolved', call:'No', event:'merchant_verified_closed' },
+  { id:'SW-4405', type:'COD Block', inline:'Y', time:'0m 55s', status:'Resolved', call:'No', event:'upi_switch_completed' },
+  { id:'SW-4408', type:'GPS Mismatch', inline:'R', time:'1m 40s', status:'Redirected', call:'No', event:'driver_redirected' },
+  { id:'SW-4410', type:'Store Closed', inline:'Y', time:'2m 18s', status:'Resolved', call:'No', event:'merchant_verified_closed' },
+  { id:'SW-4412', type:'COD Block', inline:'N', time:'5m 30s', status:'Escalated', call:'Yes', event:'customer_refused_payment' },
+  { id:'SW-4415', type:'GPS Mismatch', inline:'Y', time:'1m 05s', status:'Resolved', call:'No', event:'location_confirmed' },
+  { id:'SW-4417', type:'Store Closed', inline:'N', time:'7m 45s', status:'Escalated', call:'Yes', event:'manual_support_fallback' },
+  { id:'SW-4419', type:'COD Block', inline:'Y', time:'1m 22s', status:'Resolved', call:'No', event:'upi_switch_completed' },
+  { id:'SW-4421', type:'GPS Mismatch', inline:'Y', time:'2m 00s', status:'Resolved', call:'No', event:'location_confirmed' },
+  { id:'SW-4423', type:'Store Closed', inline:'Y', time:'3m 55s', status:'Resolved', call:'No', event:'merchant_verified_closed' },
+  { id:'SW-4425', type:'GPS Mismatch', inline:'N', time:'9m 10s', status:'Escalated', call:'Yes', event:'manual_support_fallback' },
+  { id:'SW-4426', type:'Locate Restaurant', inline:'Y', time:'1m 48s', status:'Resolved', call:'No', event:'location_confirmed_by_driver' },
+  { id:'SW-4428', type:'Food Not Ready', inline:'Y', time:'0m 38s', status:'Resolved', call:'No', event:'customer_notified_delay' },
+];
+function fmtElapsed(ms) { const s = Math.max(1, Math.round(ms/1000)); return `${Math.floor(s/60)}m ${String(s%60).padStart(2,'0')}s`; }
+function logEvent(row) { sessionLog.unshift(Object.assign({ id:'SW-4421', live:true, time: fmtElapsed(Date.now()-flowStartTs) }, row)); flowStartTs = Date.now(); }
+function allIssues() { return sessionLog.concat(ISSUE_DATA); }
+function statusTag(s) { if(s==='Resolved') return `<span class="tag tag-green">✓ Resolved</span>`; if(s==='Escalated') return `<span class="tag tag-red">↑ Escalated</span>`; if(s==='Redirected') return `<span class="tag tag-yellow">↪ Redirected</span>`; return `<span class="tag tag-yellow">${s}</span>`; }
+function inlineTag(v) { if(v==='Y') return `<span class="tag tag-green">Yes</span>`; if(v==='R') return `<span class="tag tag-yellow">Redirected</span>`; return `<span class="tag tag-red">No</span>`; }
+function callTag(v) { return v==='No' ? `<span class="tag tag-green">No</span>` : `<span class="tag tag-red">Yes</span>`; }
+function liveTag(r) { return r.live ? ` <span class="tag tag-blue" style="margin-left:.3rem;">Live</span>` : ''; }
+function buildTables() { const all = allIssues(); buildOverviewTable(all.slice(0,8)); buildLogTable(all); }
+function buildOverviewTable(data) {
+  document.getElementById('opsTableBody').innerHTML = data.map(r => `<tr><td style="font-weight:600;">#${r.id}${liveTag(r)}</td><td>${r.type}</td><td>${inlineTag(r.inline)}</td><td>${r.time}</td><td>${statusTag(r.status)}</td></tr>`).join('');
+}
+let currentFilter = 'all';
+function buildLogTable(data) {
+  const f = currentFilter === 'all' ? data : data.filter(r => r.type === currentFilter);
+  document.getElementById('logTableBody').innerHTML = f.map(r => `<tr><td style="font-weight:600;">#${r.id}${liveTag(r)}</td><td>${r.type}</td><td>${inlineTag(r.inline)}</td><td>${r.time}</td><td>${callTag(r.call)}</td><td><span class="evt">${r.event}</span></td></tr>`).join('');
+}
+function filterTable(t, b) { currentFilter = t; document.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); buildLogTable(allIssues()); }
+
+let chartInstance = null;
+function initChart() {
+  const ctx = document.getElementById('deflectionChart'); if (!ctx) return;
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, { type:'bar', data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets:[{ label:'Deflection Rate (%)', data:[52,55,58,61,59,63,60], backgroundColor:(c)=>{ const v=c.raw; if(v>=62) return '#16a34a'; if(v>=58) return '#1d4ed8'; return '#94a3b8'; }, borderRadius:6, borderSkipped:false }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(c)=>`Deflection: ${c.raw}%` } } }, scales:{ y:{ min:45, max:70, ticks:{ callback:v=>v+'%', font:{size:11} }, grid:{ color:'#f1f5f9' } }, x:{ grid:{ display:false }, ticks:{ font:{size:11} } } } } });
+}
+function switchOpsTab(tab) {
+  document.getElementById('ops-overview').classList.toggle('hidden', tab !== 'overview');
+  document.getElementById('ops-log').classList.toggle('hidden', tab !== 'log');
+  document.querySelectorAll('.ops-nav-btn').forEach((b,i) => b.classList.toggle('active', (tab==='overview' && i===0) || (tab==='log' && i===1)));
+  if (tab === 'log') buildLogTable(allIssues());
+}
+loadState();
+</script>
+</body>
+</html>
